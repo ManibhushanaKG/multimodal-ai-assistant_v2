@@ -69,8 +69,9 @@ def generate_caption(image_path):
         generated_ids = model.generate(
             input_ids=inputs["input_ids"],
             pixel_values=inputs["pixel_values"],
-            max_new_tokens=64,
-            num_beams=1,
+            max_new_tokens=150,     # Enough to finish captions
+            num_beams=2,
+            early_stopping=True,
             do_sample=False
         )
 

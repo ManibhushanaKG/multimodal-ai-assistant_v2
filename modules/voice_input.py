@@ -1,7 +1,6 @@
 import speech_recognition as sr
 
 recognizer = sr.Recognizer()
-
 recognizer.dynamic_energy_threshold = True
 recognizer.pause_threshold = 0.8
 recognizer.non_speaking_duration = 0.5
@@ -29,15 +28,14 @@ def listen_command():
     initialize_microphone()
 
     try:
-
         with microphone as source:
 
             print("🎤 Listening...")
 
             audio = recognizer.listen(
                 source,
-                timeout=0.5,
-                phrase_time_limit=2
+                timeout=1,
+                phrase_time_limit=3
             )
 
         text = recognizer.recognize_google(
@@ -47,21 +45,30 @@ def listen_command():
 
         print("You said:", text)
 
-        if any(x in text for x in [
+        # START COMMANDS
+        start_words = [
             "hey assistant",
             "hello assistant",
             "hi assistant",
             "start assistant",
             "open assistant",
             "wake up assistant"
-        ]):
+        ]
+
+        # STOP COMMANDS
+        stop_words = [
+            "stop assistant",
+            "close assistant",
+            "exit assistant",
+            "stop",
+            "close",
+            "exit"
+        ]
+
+        if any(word in text for word in start_words):
             return "start"
 
-        if any(x in text for x in [
-            "close assistant",
-            "stop assistant",
-            "exit assistant"
-        ]):
+        if any(word in text for word in stop_words):
             return "stop"
 
         return ""

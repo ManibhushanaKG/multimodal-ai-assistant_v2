@@ -1,15 +1,31 @@
+import threading
 import time
+import sys
 
 from modules.assistant import Assistant
 from modules.camera_manager import CameraManager
 from modules.speech import stop_speech, speak
 from modules.voice_input import listen_command
 
+# Global flag used by background voice listener
+stop_requested = False
 
-VOICE_CHECK_INTERVAL = 5  # seconds
+
+def voice_listener():
+    """Runs in the background and listens only for stop commands."""
+    global stop_requested
+
+    while not stop_requested:
+        command = listen_command()
+
+        if command == "stop":
+            print("🛑 Stop Assistant detected!")
+            stop_requested = True
+            break
 
 
 def main():
+    global stop_requested
 
     print("=" * 60)
     print("        MULTIMODAL AI ASSISTANT v2")
@@ -23,19 +39,14 @@ def main():
     print()
 
     # -------------------------
-    # Wait for wake word
+    # Wake Word Detection
     # -------------------------
-
     while True:
-
         command = listen_command()
 
         if command == "start":
-
             print("✅ Assistant Started")
-
             speak("Hello. I am ready to assist you.")
-
             break
 
         print("Wake word not detected. Try again.")
@@ -43,15 +54,47 @@ def main():
     camera = CameraManager()
     assistant = Assistant()
 
-    last_voice_check = time.time()
+    # -------------------------
+    # Background Stop Listener
+    # -------------------------
+    stop_requested = False
 
+    listener_thread = threading.Thread(
+        target=voice_listener,
+        daemon=True
+    )
+    listener_thread.start()
+
+    # -------------------------
+    # Main Camera Loop
+    # -------------------------
     try:
-
         while assistant.is_running():
 
-            # -------------------------
-            # Camera (runs continuously)
-            # -------------------------
+            # Voice command requested stop
+            if stop_requested:
+                print("🛑 Closing VisionAssist AI...")
+
+                speak("Closing VisionAssist AI. Goodbye!")
+
+                # Give TTS a moment to start speaking
+                time.sleep(0.5)
+
+                assistant.stop()
+
+                # Release resources immediately
+                try:
+                    camera.release()
+                except:
+                    pass
+
+                try:
+                    stop_speech()
+                except:
+                    pass
+
+                print("Assistant Closed.")
+                sys.exit(0)
 
             frame = camera.read()
 
@@ -62,39 +105,28 @@ def main():
 
             camera.show(results)
 
-            # -------------------------
-            # Check stop command every 5 seconds
-            # -------------------------
-
-            now = time.time()
-
-            if now - last_voice_check >= VOICE_CHECK_INTERVAL:
-
-                command = listen_command()
-
-                last_voice_check = now
-
-                if command == "stop":
-
-                    speak("Closing assistant.")
-
-                    assistant.stop()
-
-                    break
-
+            # Press Q to quit
             if camera.should_quit():
-
                 assistant.stop()
+                break
+
+            time.sleep(0.01)
 
     except KeyboardInterrupt:
-
         print("\nStopping Assistant...")
 
     finally:
+        stop_requested = True
 
-        stop_speech()
+        try:
+            stop_speech()
+        except:
+            pass
 
-        camera.release()
+        try:
+            camera.release()
+        except:
+            pass
 
         print("Assistant Closed.")
 
